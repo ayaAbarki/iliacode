@@ -44,7 +44,7 @@ def exemple(paire):
 
     ### Modification 3
     # on ajoute le jeton de fin à la réponse pour que le modèle apprenne à s'arrêter de générer à la fin de la réponse.
-    ids = tokeniseur(demande + paire["reponse"] + FIN)["input_ids"]
+    ids = tokeniseur(demande + paire["reponse"] + "<|im_end|>")["input_ids"]
     assert ids[-1] == tokeniseur.convert_tokens_to_ids(FIN), "le jeton de fin n'est pas reconnu"
     ### Fin modification 3
 
@@ -58,7 +58,7 @@ def exemple(paire):
 paires = json.load(open("paires.json", encoding="utf-8"))
 adam = torch.optim.AdamW(entraines, lr=1e-4)
 random.seed(0)
-for epoque in range(3):
+for epoque in range(2):
     random.shuffle(paires)
     pertes = []
     # on part element par element (stockastique) pour que la perte soit plus stable et que l'adaptateur converge mieux.
