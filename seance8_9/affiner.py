@@ -8,15 +8,29 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 MOTEUR, SORTIE = sys.argv[1], sys.argv[2]
 
+
+
+### Modification 1
+# jeton de fin : Instruct s'arrête sur <|im_end|>, le modèle de base sur <|endoftext|> (déjà appris au préentraînement)
+FIN = "<|im_end|>" if "Instruct" in MOTEUR else "<|endoftext|>"
+### Fin modification 1
+
+
+
 tokeniseur = AutoTokenizer.from_pretrained(MOTEUR)
 moteur = AutoModelForCausalLM.from_pretrained(MOTEUR, torch_dtype=torch.bfloat16, device_map="cuda")
 moteur.gradient_checkpointing_enable() # stope les paramètres des matrices internes de l'attention de ne pas être calculés pour économiser la mémoire
 moteur.enable_input_require_grads() # stope les paramètres de la matrice d'embedding (d'entrées) de ne pas être calculés pour économiser la mémoire
 
+
+### Modification 2
 # la fonction get_peft_model() va créer un adaptateur LoRA pour le moteur et ne va pas modifier les poids du moteur.
 # L'adaptateur va être entraîné et les poids du moteur vont rester inchangés.
 # on va entraîner que les matrices de projection q_proj et v_proj de l'attention, qui sont les plus importantes pour la qualité du modèle.
 moteur = get_peft_model(moteur, LoraConfig(r=16, target_modules=["q_proj", "v_proj", "o_proj", "k_proj"], task_type="CAUSAL_LM", lora_alpha=32, lora_dropout=0.05, use_rslora=True))
+### Fin modification 2
+
+
 entraines = [p for p in moteur.parameters() if p.requires_grad]
 for p in entraines:
     p.data = p.data.float() # p (un tenseur). Pour accèder aux valeurs numériques d'un tenseurs on utilise p.data
@@ -27,7 +41,14 @@ def exemple(paire):
     demande = tokeniseur.apply_chat_template(
         [{"role": "user", "content": paire["demande"]}], tokenize=False, add_generation_prompt=True)
     ids_demande = tokeniseur(demande)["input_ids"]
-    ids = tokeniseur(demande + paire["reponse"] + "<|im_end|>")["input_ids"]
+
+    ### Modification 3
+    # on ajoute le jeton de fin à la réponse pour que le modèle apprenne à s'arrêter de générer à la fin de la réponse.
+    ids = tokeniseur(demande + paire["reponse"] + FIN)["input_ids"]
+    assert ids[-1] == tokeniseur.convert_tokens_to_ids(FIN), "le jeton de fin n'est pas reconnu"
+    ### Fin modification 3
+
+
     cibles = [-100] * len(ids_demande) + ids[len(ids_demande):]
     return torch.tensor([ids]).cuda(), torch.tensor([cibles]).cuda()
 
@@ -35,7 +56,7 @@ def exemple(paire):
 
 # Commencer l'entraînement de l'adaptateur LoRA sur les paires de demande-réponse.
 paires = json.load(open("paires.json", encoding="utf-8"))
-adam = torch.optim.AdamW(entraines, lr=2e-4)
+adam = torch.optim.AdamW(entraines, lr=1e-4)
 random.seed(0)
 for epoque in range(3):
     random.shuffle(paires)
