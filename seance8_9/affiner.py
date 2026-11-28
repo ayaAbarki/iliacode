@@ -58,7 +58,7 @@ def exemple(paire):
 paires = json.load(open("paires.json", encoding="utf-8"))
 adam = torch.optim.AdamW(entraines, lr=1e-4)
 random.seed(0)
-for epoque in range(3):
+for epoque in range(2):
     random.shuffle(paires)
     pertes = []
     # on part element par element (stockastique) pour que la perte soit plus stable et que l'adaptateur converge mieux.
