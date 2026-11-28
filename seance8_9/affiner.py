@@ -44,8 +44,8 @@ def exemple(paire):
 
     ### Modification 3
     # on ajoute le jeton de fin à la réponse pour que le modèle apprenne à s'arrêter de générer à la fin de la réponse.
-    ids = tokeniseur(demande + paire["reponse"] + "<|im_end|>")["input_ids"]
-    #assert ids[-1] == tokeniseur.convert_tokens_to_ids(FIN), "le jeton de fin n'est pas reconnu"
+    ids = tokeniseur(demande + paire["reponse"] + FIN)["input_ids"]
+    assert ids[-1] == tokeniseur.convert_tokens_to_ids(FIN), "le jeton de fin n'est pas reconnu"
     ### Fin modification 3
 
 
